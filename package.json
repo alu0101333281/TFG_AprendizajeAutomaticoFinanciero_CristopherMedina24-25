@@ -1,0 +1,32 @@
+{
+  "name": "vite-project",
+  "private": true,
+  "version": "0.0.0",
+  "type": "commonjs",
+  "scripts": {
+    "dev-frontend": "vite",
+    "build-frontend": "vue-tsc -b && vite build",
+    "preview-frontend": "vite preview",
+    "start-backend": "node backend/server.js",
+    "install-all": "npm install --prefix backend && npm install --prefix frontend",
+    "dev": "concurrently \"npm run dev-frontend\" \"npm run start-backend\""
+  },
+  "dependencies": {
+    "axios": "^1.8.4",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^5.1.0",
+    "socket.io": "^4.8.1",
+    "socket.io-client": "^4.8.1",
+    "tailwindcss": "^4.1.1",
+    "vue": "^3.5.13"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.2.1",
+    "@vue/tsconfig": "^0.7.0",
+    "concurrently": "^7.6.0",
+    "typescript": "~5.7.2",
+    "vite": "^6.2.0",
+    "vue-tsc": "^2.2.4"
+  }
+}
