@@ -16,19 +16,19 @@ const chartContainer = ref<HTMLElement | null>(null)
 let chart: IChartApi | null = null
 let candleSeries: ISeriesApi<'Candlestick'> | null = null
 
-// ✅ Props para timeframe y datos crudos estilo Binance
+// Props: timeframe (1m, 5m...) y symbol (BTCUSDT, ETHUSDT, etc.)
 const props = defineProps({
   timeframe: {
     type: String,
     required: true
   },
-  rawData: {
-    type: Array as () => any[], // Esperamos un array de arrays de datos de velas tipo Binance
+  symbol: {
+    type: String,
     required: true
   }
 })
 
-// ✅ Convierte datos de Binance a formato compatible con lightweight-charts
+// Convierte datos de Binance a formato lightweight-charts
 function transformRawToCandlestickData(raw: any[]): CandlestickData[] {
   return raw.map(item => ({
     time: Math.floor(item[0] / 1000) as UTCTimestamp,
@@ -39,43 +39,15 @@ function transformRawToCandlestickData(raw: any[]): CandlestickData[] {
   }))
 }
 
-// ✅ Agrupa datos de 1m a 5m, 15m, 1h, etc.
-function groupCandles(data: CandlestickData[], intervalInMinutes: number): CandlestickData[] {
-  const grouped: CandlestickData[] = []
-
-  for (let i = 0; i < data.length; i += intervalInMinutes) {
-    const group = data.slice(i, i + intervalInMinutes)
-    if (group.length === 0) continue
-
-    const open = group[0].open
-    const close = group[group.length - 1].close
-    const high = Math.max(...group.map(d => d.high))
-    const low = Math.min(...group.map(d => d.low))
-    const time = group[0].time
-
-    grouped.push({ time, open, high, low, close })
-  }
-
-  return grouped
+// Fetch a Binance con símbolo y temporalidad
+async function fetchBinanceCandles(symbol: string, interval: string): Promise<CandlestickData[]> {
+  const url = `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=500`
+  const response = await fetch(url)
+  const raw = await response.json()
+  return transformRawToCandlestickData(raw)
 }
 
-// ✅ Calcula los datos procesados según timeframe
-function getDataForTimeframe(timeframe: string, raw: any[]): CandlestickData[] {
-  const timeframes: Record<string, number> = {
-    '1m': 1,
-    '5m': 5,
-    '15m': 15,
-    '1h': 60,
-    '4h': 240,
-    '1D': 1440
-  }
-
-  const interval = timeframes[timeframe] || 1
-  const baseCandles = transformRawToCandlestickData(raw)
-  return interval === 1 ? baseCandles : groupCandles(baseCandles, interval)
-}
-
-// ✅ Redimensionar gráfico si cambia tamaño ventana
+// Resize chart al cambiar tamaño
 const resizeChart = () => {
   if (chart && chartContainer.value) {
     chart.resize(
@@ -85,7 +57,7 @@ const resizeChart = () => {
   }
 }
 
-// ✅ Inicialización del gráfico
+// Inicialización
 onMounted(async () => {
   await nextTick()
   if (!chartContainer.value) return
@@ -113,25 +85,23 @@ onMounted(async () => {
     wickUpColor: '#26a69a',
     downColor: '#ef5350',
     borderDownColor: '#ef5350',
-    wickDownColor: '#ef5350',
+    wickDownColor: '#ef5350'
   })
 
-  if (props.rawData.length) {
-    const formatted = getDataForTimeframe(props.timeframe, props.rawData)
-    candleSeries.setData(formatted)
-  }
+  const candles = await fetchBinanceCandles(props.symbol, props.timeframe)
+  candleSeries.setData(candles)
 
   window.addEventListener('resize', resizeChart)
   resizeChart()
 })
 
-// ✅ Reaccionar a cambios en timeframe o datos
-watch(() => [props.timeframe, props.rawData], ([newTF, newRaw]) => {
-  if (candleSeries && newRaw.length) {
-    const formatted = getDataForTimeframe(newTF, newRaw)
-    candleSeries.setData(formatted)
+// Reaccionar a cambios en timeframe o símbolo
+watch(() => [props.timeframe, props.symbol], async ([newTF, newSymbol]) => {
+  if (candleSeries) {
+    const newCandles = await fetchBinanceCandles(newSymbol, newTF)
+    candleSeries.setData(newCandles)
   }
-}, { deep: true })
+})
 
 onBeforeUnmount(() => {
   window.removeEventListener('resize', resizeChart)
