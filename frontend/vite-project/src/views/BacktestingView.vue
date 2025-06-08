@@ -8,13 +8,13 @@
 
     <!-- Barra superior con timeframes y controles -->
     <div class="col-span-1 bg-gray-800 border-b border-gray-700 p-2 flex items-center justify-between">
-      <Timeframes />
+      <Timeframes @update:timeframe="handleTimeframeChange" />
       <Controls />
     </div>
 
     <!-- Gráfico -->
     <div class="bg-black overflow-hidden">
-      <Chart />
+      <Chart :rawData="binanceData" :timeframe="selectedTimeframe" />
     </div>
 
     <!-- TradeLog (abajo del gráfico) -->
@@ -29,10 +29,19 @@
   </div>
 </template>
 <script setup lang="ts">
+import { ref } from 'vue'
+
+const selectedTimeframe = ref('1m')
+
+function handleTimeframeChange(tf) {
+  console.log('📥 Nuevo timeframe recibido en BacktestingView:', tf)
+  selectedTimeframe.value = tf
+}
 import Chart from '@/components/Chart.vue'
 import Controls from '@/components/Controls.vue'
 import TradeLog from '@/components/TradeLog.vue'
 import Timeframes from '@/components/TimeFrames.vue'
 import CurrencyPairs from '@/components/PairList.vue'
 import DrawingTools from '@/components/DrawingTools.vue'
+import binanceData from '@/assets/data/binanceData.json'
 </script>

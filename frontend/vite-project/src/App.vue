@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import chart from './views/BacktestingView.vue'
-import ChartTest from './components/ChartTest.vue'
 </script>
 
 <template>
