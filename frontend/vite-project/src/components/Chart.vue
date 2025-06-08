@@ -3,13 +3,14 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, onBeforeUnmount, ref, nextTick, watch } from 'vue'
+import { onMounted, onBeforeUnmount, ref, nextTick, watch,  } from 'vue'
 import {
   createChart,
   type IChartApi,
   type ISeriesApi,
   type CandlestickData,
-  UTCTimestamp
+  UTCTimestamp,
+  CrosshairMode
 } from 'lightweight-charts'
 
 const chartContainer = ref<HTMLElement | null>(null)
@@ -76,7 +77,10 @@ onMounted(async () => {
     timeScale: {
       timeVisible: true,
       secondsVisible: false
-    }
+    },
+      crosshair: {
+    mode: CrosshairMode.Normal
+  }
   })
 
   candleSeries = chart.addCandlestickSeries({

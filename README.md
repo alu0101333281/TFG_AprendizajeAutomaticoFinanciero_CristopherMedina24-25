@@ -24,4 +24,4 @@ Se podria solucionar creando un package.json dentro del front con el type en mod
 
 
 Seguimiento:
-Tenemos un programa en el que se muestran datos en el grafico sobre un json sacado de la api de binance manualmente (todavia no hacemos peticiones).
+Tenemos un programa en el que se muestran datos en el grafico sobre un json sacado de la api de binance con solicitudes y cambios de algunos pares de crypto.
