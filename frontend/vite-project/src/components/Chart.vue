@@ -3,7 +3,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, onBeforeUnmount, ref, nextTick, watch,  } from 'vue'
+import { onMounted, onBeforeUnmount, ref, nextTick, watch } from 'vue'
 import {
   createChart,
   type IChartApi,
@@ -16,22 +16,27 @@ import {
 const chartContainer = ref<HTMLElement | null>(null)
 let chart: IChartApi | null = null
 let candleSeries: ISeriesApi<'Candlestick'> | null = null
+let allCandles: CandlestickData[] = []
 
-// Props: timeframe (1m, 5m...) y symbol (BTCUSDT, ETHUSDT, etc.)
 const props = defineProps({
-  timeframe: {
-    type: String,
-    required: true
-  },
-  symbol: {
-    type: String,
-    required: true
-  }
+  timeframe: { type: String, required: true },
+  symbol: { type: String, required: true },
+  isBacktesting: { type: Boolean, required: true },
+  currentIndex: { type: Number, required: false, default: 0 },
+  selectionMode: { type: Boolean, required: false, default: false },
+  backtestingStartIndex: { type: Number, required: false, default: null }
 })
 
-// Convierte datos de Binance a formato lightweight-charts
-function transformRawToCandlestickData(raw: any[]): CandlestickData[] {
-  return raw.map(item => ({
+const emit = defineEmits<{
+  (e: 'select-start', index: number): void
+  (e: 'update:currentIndex', index: number): void
+}>()
+
+async function fetchBinanceCandles(symbol: string, interval: string): Promise<CandlestickData[]> {
+  const url = `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=500`
+  const response = await fetch(url)
+  const raw = await response.json()
+  return raw.map((item: any) => ({
     time: Math.floor(item[0] / 1000) as UTCTimestamp,
     open: parseFloat(item[1]),
     high: parseFloat(item[2]),
@@ -40,75 +45,70 @@ function transformRawToCandlestickData(raw: any[]): CandlestickData[] {
   }))
 }
 
-// Fetch a Binance con símbolo y temporalidad
-async function fetchBinanceCandles(symbol: string, interval: string): Promise<CandlestickData[]> {
-  const url = `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=500`
-  const response = await fetch(url)
-  const raw = await response.json()
-  return transformRawToCandlestickData(raw)
-}
-
-// Resize chart al cambiar tamaño
-const resizeChart = () => {
+function resizeChart() {
   if (chart && chartContainer.value) {
-    chart.resize(
-      chartContainer.value.clientWidth,
-      chartContainer.value.clientHeight
-    )
+    chart.resize(chartContainer.value.clientWidth, chartContainer.value.clientHeight)
   }
 }
 
-// Inicialización
-onMounted(async () => {
-  await nextTick()
+async function initializeChart() {
   if (!chartContainer.value) return
 
   chart = createChart(chartContainer.value, {
     width: chartContainer.value.clientWidth,
     height: chartContainer.value.clientHeight,
-    layout: {
-      background: { color: '#ffffff' },
-      textColor: '#000000'
-    },
-    grid: {
-      vertLines: { color: '#e0e0e0' },
-      horzLines: { color: '#e0e0e0' }
-    },
-    timeScale: {
-      timeVisible: true,
-      secondsVisible: false
-    },
-      crosshair: {
-    mode: CrosshairMode.Normal
-  }
+    layout: { background: { color: '#000' }, textColor: '#ccc' },
+    grid: { vertLines: { color: '#444' }, horzLines: { color: '#444' } },
+    timeScale: { timeVisible: true },
+    crosshair: { mode: CrosshairMode.Normal }
   })
 
   candleSeries = chart.addCandlestickSeries({
-    upColor: '#26a69a',
-    borderUpColor: '#26a69a',
-    wickUpColor: '#26a69a',
-    downColor: '#ef5350',
-    borderDownColor: '#ef5350',
-    wickDownColor: '#ef5350'
+    upColor: '#26a69a', borderUpColor: '#26a69a', wickUpColor: '#26a69a',
+    downColor: '#ef5350', borderDownColor: '#ef5350', wickDownColor: '#ef5350'
   })
 
-  const candles = await fetchBinanceCandles(props.symbol, props.timeframe)
-  candleSeries.setData(candles)
+  allCandles = await fetchBinanceCandles(props.symbol, props.timeframe)
+  updateDisplayedCandles()
+
+  chart.subscribeClick(param => {
+    if (props.selectionMode && param.time && typeof param.time === 'number') {
+      const index = allCandles.findIndex(c => c.time === param.time)
+      if (index !== -1) emit('select-start', index)
+    }
+  })
 
   window.addEventListener('resize', resizeChart)
   resizeChart()
+}
+
+function updateDisplayedCandles() {
+  if (candleSeries) {
+    if (props.isBacktesting && props.backtestingStartIndex !== null) {
+      candleSeries.setData(allCandles.slice(0, props.currentIndex + 1))
+    } else {
+      candleSeries.setData(allCandles)
+    }
+  }
+}
+
+watch(() => [props.isBacktesting, props.currentIndex, props.backtestingStartIndex], updateDisplayedCandles)
+
+watch(() => [props.timeframe, props.symbol], async () => {
+  if (chart) {
+    allCandles = await fetchBinanceCandles(props.symbol, props.timeframe)
+    updateDisplayedCandles()
+  }
 })
 
-// Reaccionar a cambios en timeframe o símbolo
-watch(() => [props.timeframe, props.symbol], async ([newTF, newSymbol]) => {
-  if (candleSeries) {
-    const newCandles = await fetchBinanceCandles(newSymbol, newTF)
-    candleSeries.setData(newCandles)
-  }
+onMounted(async () => {
+  await nextTick()
+  await initializeChart()
 })
 
 onBeforeUnmount(() => {
   window.removeEventListener('resize', resizeChart)
+  chart?.remove()
 })
 </script>
 

@@ -1,86 +1,147 @@
 <template>
-  <div class="h-screen w-screen grid grid-cols-[60px_1fr_300px] grid-rows-[auto_1fr_auto] gap-0 bg-gray-900 text-white">
-
-    <!-- Herramientas de dibujo (izquierda) -->
-    <div class="row-span-3 bg-gray-800 border-r border-gray-700 p-2">
+  <div class="h-screen w-screen grid grid-cols-[60px_1fr_300px] grid-rows-[auto_1fr] bg-gray-900 text-white">
+    <div class="row-span-2 bg-gray-800 border-r border-gray-700 p-2 flex flex-col gap-2">
       <DrawingTools />
     </div>
 
-    <!-- Barra superior con timeframes y controles -->
-    <div class="col-span-1 bg-gray-800 border-b border-gray-700 p-2 flex items-center justify-between">
+    <div class="col-span-1 bg-gray-900 border-b border-gray-800 p-2 flex items-center justify-start gap-4">
       <Timeframes @update:timeframe="handleTimeframeChange" />
-      <Controls />
+      <button
+        @click="toggleBacktestingMode"
+        class="bg-blue-600 px-4 py-2 rounded text-white"
+      >
+        {{ isBacktesting ? 'Salir Backtesting' : 'Iniciar Backtesting' }}
+      </button>
+
+      <Controls
+        v-if="isBacktesting"
+        :is-playing="isPlaying"
+        :play-speed="playSpeed"
+        @toggle-play="togglePlay"
+        @start-selection="activateSelectionMode"
+        @next-candle="nextCandle"
+        @prev-candle="prevCandle"
+        @update:playSpeed="val => playSpeed = val"
+      />
     </div>
 
-    <!-- Gráfico -->
-    <div class="bg-black overflow-hidden">
-      <Chart :timeframe="selectedTimeframe" :symbol="selectedPair" />
+    <div class="relative bg-black">
+      <Chart
+        :timeframe="selectedTimeframe"
+        :symbol="selectedPair"
+        :backtesting-start-index="backtestingStartIndex"
+        :is-backtesting="isBacktesting"
+        :current-index="currentIndex"
+        :selection-mode="isSelectingStart"
+        @select-start="handleBacktestingStart"
+        @update:currentIndex="val => currentIndex = val"
+      />
     </div>
 
-    <!-- TradeLog (abajo del gráfico) -->
-    <div class="bg-gray-800 border-t border-gray-700 p-2 overflow-auto">
-      <TradeLog />
-    </div>
-
-    <!-- Barra lateral derecha con pares -->
-    <div class="row-span-3 bg-gray-800 border-l border-gray-700 p-2 overflow-y-auto">
+    <div class="row-span-2 bg-gray-800 border-l border-gray-700 p-2 overflow-y-auto">
       <PairList @pair-selected="handlePairChange" />
     </div>
   </div>
 </template>
+
 <script setup lang="ts">
 import { ref } from 'vue'
 import axios from 'axios'
 
-// 🔘 Par de monedas actualmente seleccionado (por defecto BTC/USDT)
 const selectedPair = ref('BTCUSDT')
-
-// ⏱️ Timeframe actual seleccionado (por defecto 1 minuto)
 const selectedTimeframe = ref('1m')
+const rawCandleData = ref<any[]>([])
 
-// 📊 Datos crudos de velas obtenidos de la API de Binance
-const rawCandleData = ref([])
+const isBacktesting = ref(false)
+const isSelectingStart = ref(false)
+const backtestingStartIndex = ref<number | null>(null)
+const currentIndex = ref(0)
+const isPlaying = ref(false)
+const playSpeed = ref(500)
 
-/**
- * 📡 Función para obtener datos de velas desde Binance según par y timeframe
- * @param symbol - Par de monedas (ej. BTCUSDT)
- * @param interval - Intervalo de tiempo (ej. 1m, 5m, 1h)
- */
+let intervalId: ReturnType<typeof setInterval> | null = null
+
+function toggleBacktestingMode() {
+  isBacktesting.value = !isBacktesting.value
+  if (!isBacktesting.value) {
+    stopPlayback()
+    isSelectingStart.value = false
+    backtestingStartIndex.value = null
+    currentIndex.value = 0
+  }
+}
+
+function activateSelectionMode() {
+  isSelectingStart.value = true
+}
+
+function handleBacktestingStart(index: number) {
+  backtestingStartIndex.value = index
+  currentIndex.value = index
+  isSelectingStart.value = false
+}
+
+function togglePlay() {
+  isPlaying.value = !isPlaying.value
+  if (isPlaying.value) startPlayback()
+  else stopPlayback()
+}
+
+function startPlayback() {
+  stopPlayback()
+  intervalId = setInterval(() => {
+    if (currentIndex.value < rawCandleData.value.length - 1) {
+      currentIndex.value++
+    } else {
+      stopPlayback()
+      isPlaying.value = false
+    }
+  }, playSpeed.value)
+}
+
+function stopPlayback() {
+  if (intervalId) {
+    clearInterval(intervalId)
+    intervalId = null
+  }
+}
+
+function nextCandle() {
+  if (currentIndex.value < (rawCandleData.value.length - 1)) {
+    currentIndex.value++
+  }
+}
+
+function prevCandle() {
+  if (currentIndex.value > (backtestingStartIndex.value || 0)) {
+    currentIndex.value--
+  }
+}
+
 async function fetchBinanceData(symbol: string, interval: string) {
   try {
-    const url = `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=100`
+    const url = `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=500`
     const res = await axios.get(url)
-    rawCandleData.value = res.data // Guardamos los datos recibidos
+    rawCandleData.value = res.data
   } catch (e) {
     console.error('Error fetching Binance data:', e)
   }
 }
 
-/**
- * 🟦 Manejador de cambio de par (llamado desde el componente PairList)
- * Actualiza el par seleccionado y vuelve a pedir los datos.
- */
 function handlePairChange(pair: string) {
   selectedPair.value = pair
   fetchBinanceData(pair, selectedTimeframe.value)
 }
 
-// 🚀 Obtener datos iniciales al cargar la vista por primera vez
-fetchBinanceData(selectedPair.value, selectedTimeframe.value)
-
-/**
- * ⬛ Manejador de cambio de timeframe (llamado desde el componente Timeframes)
- * Actualiza el timeframe y vuelve a pedir los datos.
- */
 function handleTimeframeChange(tf: string) {
-  console.log('📥 Nuevo timeframe recibido en BacktestingView:', tf)
   selectedTimeframe.value = tf
   fetchBinanceData(selectedPair.value, tf)
 }
 
+fetchBinanceData(selectedPair.value, selectedTimeframe.value)
+
 import Chart from '@/components/Chart.vue'
 import Controls from '@/components/Controls.vue'
-import TradeLog from '@/components/TradeLog.vue'
 import Timeframes from '@/components/TimeFrames.vue'
 import PairList from '@/components/PairList.vue'
 import DrawingTools from '@/components/DrawingTools.vue'

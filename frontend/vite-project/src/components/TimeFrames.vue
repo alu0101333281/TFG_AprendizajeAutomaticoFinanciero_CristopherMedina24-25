@@ -14,7 +14,7 @@
   
   <script setup lang="ts">
   import { ref } from 'vue'
-  const timeframes = ['1m', '5m', '15m', '1h', '4h', '1D']
+  const timeframes = ['1m', '5m', '15m', '1h', '4h', '1d', '1w']
   const selected = ref('1m')
   const emit =defineEmits(['update:timeframe'])
   function selectTimeframe(tf){
