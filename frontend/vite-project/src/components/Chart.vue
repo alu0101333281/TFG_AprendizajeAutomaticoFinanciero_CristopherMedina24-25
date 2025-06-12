@@ -30,6 +30,7 @@ const props = defineProps({
 const emit = defineEmits<{
   (e: 'select-start', index: number): void
   (e: 'update:currentIndex', index: number): void
+  (e: 'update:currentPrice', value: number): void
 }>()
 
 async function fetchBinanceCandles(symbol: string, interval: string): Promise<CandlestickData[]> {
@@ -59,8 +60,16 @@ async function initializeChart() {
     height: chartContainer.value.clientHeight,
     layout: { background: { color: '#000' }, textColor: '#ccc' },
     grid: { vertLines: { color: '#444' }, horzLines: { color: '#444' } },
-    timeScale: { timeVisible: true },
-    crosshair: { mode: CrosshairMode.Normal }
+    timeScale: {
+      timeVisible: true,
+      rightOffset: 5
+    },
+    crosshair: { mode: CrosshairMode.Normal },
+    interaction: {
+      mouseWheel: { scale: 1.5 },
+      pinchZoom: true,
+      axesDrag: false
+    }
   })
 
   candleSeries = chart.addCandlestickSeries({
@@ -90,8 +99,15 @@ function updateDisplayedCandles() {
       candleSeries.setData(allCandles)
     }
   }
+
+  // Emitir el precio actual si aplica
+  if (props.isBacktesting && allCandles.length > props.currentIndex) {
+    const price = allCandles[props.currentIndex]?.close
+    if (price) emit('update:currentPrice', price)
+  }
 }
 
+// 🔁 Actualiza velas + emite precio actual cuando cambie índice
 watch(() => [props.isBacktesting, props.currentIndex, props.backtestingStartIndex], updateDisplayedCandles)
 
 watch(() => [props.timeframe, props.symbol], async () => {

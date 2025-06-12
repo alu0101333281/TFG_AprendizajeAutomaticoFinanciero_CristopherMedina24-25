@@ -6,6 +6,7 @@
 
     <div class="col-span-1 bg-gray-900 border-b border-gray-800 p-2 flex items-center justify-start gap-4">
       <Timeframes @update:timeframe="handleTimeframeChange" />
+
       <button
         @click="toggleBacktestingMode"
         class="bg-blue-600 px-4 py-2 rounded text-white"
@@ -35,11 +36,24 @@
         :selection-mode="isSelectingStart"
         @select-start="handleBacktestingStart"
         @update:currentIndex="val => currentIndex = val"
+        @update:currentPrice="val => currentPrice = val"
       />
     </div>
 
     <div class="row-span-2 bg-gray-800 border-l border-gray-700 p-2 overflow-y-auto">
       <PairList @pair-selected="handlePairChange" />
+    </div>
+
+    <div>
+      <TradePanel
+        :balance="balance"
+        :currentPrice="currentPrice"
+        @open-trade="handleOpenTrade"
+      />
+    </div>
+
+    <div>
+      <Balance @set-balance="val => balance = val" />
     </div>
   </div>
 </template>
@@ -51,14 +65,14 @@ import axios from 'axios'
 const selectedPair = ref('BTCUSDT')
 const selectedTimeframe = ref('1m')
 const rawCandleData = ref<any[]>([])
-
+const currentPrice = ref(0)
 const isBacktesting = ref(false)
 const isSelectingStart = ref(false)
 const backtestingStartIndex = ref<number | null>(null)
 const currentIndex = ref(0)
 const isPlaying = ref(false)
 const playSpeed = ref(500)
-
+const balance = ref(1000)
 let intervalId: ReturnType<typeof setInterval> | null = null
 
 function toggleBacktestingMode() {
@@ -107,7 +121,7 @@ function stopPlayback() {
 }
 
 function nextCandle() {
-  if (currentIndex.value < (rawCandleData.value.length - 1)) {
+  if (currentIndex.value < rawCandleData.value.length - 1) {
     currentIndex.value++
   }
 }
@@ -138,6 +152,10 @@ function handleTimeframeChange(tf: string) {
   fetchBinanceData(selectedPair.value, tf)
 }
 
+function handleOpenTrade(trade: any) {
+  console.log('Abrir operación:', trade)
+}
+
 fetchBinanceData(selectedPair.value, selectedTimeframe.value)
 
 import Chart from '@/components/Chart.vue'
@@ -145,4 +163,6 @@ import Controls from '@/components/Controls.vue'
 import Timeframes from '@/components/TimeFrames.vue'
 import PairList from '@/components/PairList.vue'
 import DrawingTools from '@/components/DrawingTools.vue'
+import TradePanel from '@/components/TradePanel.vue'
+import Balance from '@/components/Balance.vue'
 </script>
