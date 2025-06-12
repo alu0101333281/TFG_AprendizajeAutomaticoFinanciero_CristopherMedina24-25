@@ -53,7 +53,19 @@
     </div>
 
     <div>
-      <Balance @set-balance="val => balance = val" />
+      <Balance @set-balance="val => balance.valueOf = val" />
+    </div>
+
+    <!-- Posiciones abiertas -->
+    <div class="open-positions">
+      <OpenPosition
+        v-for="position in openPositions"
+        :key="position.id"
+        :form="position"
+        :symbol="selectedPair"
+        :currentPrice="currentPrice"
+        @close="closePosition(position.id, calculatePnl(position))"
+      />
     </div>
   </div>
 </template>
@@ -61,6 +73,14 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import axios from 'axios'
+import Chart from '@/components/Chart.vue'
+import Controls from '@/components/Controls.vue'
+import Timeframes from '@/components/TimeFrames.vue'
+import PairList from '@/components/PairList.vue'
+import DrawingTools from '@/components/DrawingTools.vue'
+import TradePanel from '@/components/TradePanel.vue'
+import Balance from '@/components/Balance.vue'
+import OpenPosition from '@/components/OpenPositions.vue'
 
 const selectedPair = ref('BTCUSDT')
 const selectedTimeframe = ref('1m')
@@ -73,6 +93,8 @@ const currentIndex = ref(0)
 const isPlaying = ref(false)
 const playSpeed = ref(500)
 const balance = ref(1000)
+const openPositions = ref<any[]>([])
+
 let intervalId: ReturnType<typeof setInterval> | null = null
 
 function toggleBacktestingMode() {
@@ -153,16 +175,35 @@ function handleTimeframeChange(tf: string) {
 }
 
 function handleOpenTrade(trade: any) {
-  console.log('Abrir operación:', trade)
+  openPositions.value.push({
+    ...trade,
+    id: Date.now()
+  })
+}
+
+function closePosition(id: number, pnl: number) {
+  openPositions.value = openPositions.value.filter(p => p.id !== id)
+  balance.value += pnl
+}
+
+function calculatePnl(position: any) {
+  const diff = currentPrice.value - position.entryPrice
+  return position.side === 'buy'
+    ? diff * position.volume
+    : -diff * position.volume
 }
 
 fetchBinanceData(selectedPair.value, selectedTimeframe.value)
-
-import Chart from '@/components/Chart.vue'
-import Controls from '@/components/Controls.vue'
-import Timeframes from '@/components/TimeFrames.vue'
-import PairList from '@/components/PairList.vue'
-import DrawingTools from '@/components/DrawingTools.vue'
-import TradePanel from '@/components/TradePanel.vue'
-import Balance from '@/components/Balance.vue'
 </script>
+
+<style scoped>
+.open-positions {
+  position: fixed;
+  bottom: 1rem;
+  left: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  z-index: 999;
+}
+</style>
