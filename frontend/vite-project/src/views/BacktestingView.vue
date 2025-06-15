@@ -6,14 +6,9 @@
 
     <div class="col-span-1 bg-gray-900 border-b border-gray-800 p-2 flex items-center justify-start gap-4">
       <Timeframes @update:timeframe="handleTimeframeChange" />
-
-      <button
-        @click="toggleBacktestingMode"
-        class="bg-blue-600 px-4 py-2 rounded text-white"
-      >
+      <button @click="toggleBacktestingMode" class="bg-blue-600 px-4 py-2 rounded text-white">
         {{ isBacktesting ? 'Salir Backtesting' : 'Iniciar Backtesting' }}
       </button>
-
       <Controls
         v-if="isBacktesting"
         :is-playing="isPlaying"
@@ -27,6 +22,9 @@
     </div>
 
     <div class="relative bg-black">
+      <div class="absolute top-2 right-4 z-10 text-white text-lg font-bold bg-gray-800 px-4 py-1 rounded shadow">
+        Balance: {{ balance.toFixed(2) }} USDT
+      </div>
       <Chart
         :timeframe="selectedTimeframe"
         :symbol="selectedPair"
@@ -37,6 +35,7 @@
         @select-start="handleBacktestingStart"
         @update:currentIndex="val => currentIndex = val"
         @update:currentPrice="val => currentPrice = val"
+        @update:currentCandle="val => currentCandle = val"
       />
     </div>
 
@@ -48,15 +47,11 @@
       <TradePanel
         :balance="balance"
         :currentPrice="currentPrice"
+        :canTrade="backtestingStartIndex !== null"
         @open-trade="handleOpenTrade"
       />
     </div>
 
-    <div>
-      <Balance @set-balance="val => balance.valueOf = val" />
-    </div>
-
-    <!-- Posiciones abiertas -->
     <div class="open-positions">
       <OpenPosition
         v-for="position in openPositions"
@@ -64,7 +59,8 @@
         :form="position"
         :symbol="selectedPair"
         :currentPrice="currentPrice"
-        @close="closePosition(position.id, calculatePnl(position))"
+        :currentCandle="currentCandle"
+        @close="(pnl, closePrice) => handleClosePosition(position.id, pnl, closePrice)"
       />
     </div>
   </div>
@@ -79,20 +75,24 @@ import Timeframes from '@/components/TimeFrames.vue'
 import PairList from '@/components/PairList.vue'
 import DrawingTools from '@/components/DrawingTools.vue'
 import TradePanel from '@/components/TradePanel.vue'
-import Balance from '@/components/Balance.vue'
 import OpenPosition from '@/components/OpenPositions.vue'
 
 const selectedPair = ref('BTCUSDT')
 const selectedTimeframe = ref('1m')
 const rawCandleData = ref<any[]>([])
 const currentPrice = ref(0)
+const currentCandle = ref({ high: 0, low: 0 })
+
 const isBacktesting = ref(false)
 const isSelectingStart = ref(false)
 const backtestingStartIndex = ref<number | null>(null)
 const currentIndex = ref(0)
 const isPlaying = ref(false)
 const playSpeed = ref(500)
-const balance = ref(1000)
+
+let baseBalance = 1000
+const balance = ref(baseBalance)
+
 const openPositions = ref<any[]>([])
 
 let intervalId: ReturnType<typeof setInterval> | null = null
@@ -112,9 +112,13 @@ function activateSelectionMode() {
 }
 
 function handleBacktestingStart(index: number) {
+  // Resetear el punto de inicio y la vela actual
   backtestingStartIndex.value = index
   currentIndex.value = index
   isSelectingStart.value = false
+
+  // Cerrar todas las operaciones abiertas sin afectar el balance
+  openPositions.value = []
 }
 
 function togglePlay() {
@@ -128,6 +132,7 @@ function startPlayback() {
   intervalId = setInterval(() => {
     if (currentIndex.value < rawCandleData.value.length - 1) {
       currentIndex.value++
+      checkForAutoClose()
     } else {
       stopPlayback()
       isPlaying.value = false
@@ -145,6 +150,7 @@ function stopPlayback() {
 function nextCandle() {
   if (currentIndex.value < rawCandleData.value.length - 1) {
     currentIndex.value++
+    checkForAutoClose()
   }
 }
 
@@ -177,20 +183,69 @@ function handleTimeframeChange(tf: string) {
 function handleOpenTrade(trade: any) {
   openPositions.value.push({
     ...trade,
-    id: Date.now()
+    id: Date.now(),
+    active: trade.orderType === 'market' // market se activa de inmediato
   })
 }
 
-function closePosition(id: number, pnl: number) {
-  openPositions.value = openPositions.value.filter(p => p.id !== id)
-  balance.value += pnl
+function handleClosePosition(id: number, pnl: number, closePrice: number) {
+  const index = openPositions.value.findIndex(pos => pos.id === id)
+  if (index !== -1) {
+    openPositions.value.splice(index, 1)
+    baseBalance += pnl
+    if (baseBalance < 0) baseBalance = 0
+    balance.value = baseBalance
+  }
 }
 
-function calculatePnl(position: any) {
-  const diff = currentPrice.value - position.entryPrice
-  return position.side === 'buy'
-    ? diff * position.volume
-    : -diff * position.volume
+function checkForAutoClose() {
+  const { high, low } = currentCandle.value
+
+  for (const pos of [...openPositions.value]) {
+    if (!pos.active) continue
+
+    const assetAmount = pos.volume / pos.entryPrice
+    const maxLoss = -pos.volume
+    let closePrice: number | null = null
+    let pnl = 0
+
+    // Check SL/TP
+    if (pos.stopLoss) {
+      const hitSL =
+        (pos.side === 'buy' && low <= pos.stopLoss) ||
+        (pos.side === 'sell' && high >= pos.stopLoss)
+      if (hitSL) closePrice = pos.stopLoss
+    }
+
+    if (!closePrice && pos.takeProfit) {
+      const hitTP =
+        (pos.side === 'buy' && high >= pos.takeProfit) ||
+        (pos.side === 'sell' && low <= pos.takeProfit)
+      if (hitTP) closePrice = pos.takeProfit
+    }
+
+    // Check liquidación por pérdida = volumen total
+    const diff = currentPrice.value - pos.entryPrice
+    const rawPnl = pos.side === 'buy'
+      ? diff * assetAmount
+      : -diff * assetAmount
+    const leveragedPnl = rawPnl * pos.leverage
+
+    if (!closePrice && leveragedPnl <= maxLoss) {
+      closePrice = pos.side === 'buy'
+        ? pos.entryPrice - (pos.volume / (assetAmount * pos.leverage))
+        : pos.entryPrice + (pos.volume / (assetAmount * pos.leverage))
+    }
+
+    if (closePrice !== null) {
+      const finalDiff = closePrice - pos.entryPrice
+      const finalPnl = pos.side === 'buy'
+        ? finalDiff * assetAmount * pos.leverage
+        : -finalDiff * assetAmount * pos.leverage
+
+      handleClosePosition(pos.id, finalPnl, closePrice)
+    }
+  }
 }
 
 fetchBinanceData(selectedPair.value, selectedTimeframe.value)

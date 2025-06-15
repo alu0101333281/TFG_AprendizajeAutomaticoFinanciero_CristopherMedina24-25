@@ -2,7 +2,7 @@
   <div class="controls flex items-center gap-4 p-2 bg-gray-800 rounded">
     <!-- Botón para activar selección de punto inicial -->
     <button @click="activateSelectionMode" :class="['btn', isSelecting ? 'bg-yellow-600' : '']">
-      🎯 Seleccionar inicio
+      Seleccionar inicio
     </button>
 
     <!-- Botones de navegación -->

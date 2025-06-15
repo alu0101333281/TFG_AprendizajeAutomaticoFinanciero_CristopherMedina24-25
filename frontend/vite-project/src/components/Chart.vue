@@ -31,6 +31,7 @@ const emit = defineEmits<{
   (e: 'select-start', index: number): void
   (e: 'update:currentIndex', index: number): void
   (e: 'update:currentPrice', value: number): void
+  (e: 'update:currentCandle', value: CandlestickData): void
 }>()
 
 async function fetchBinanceCandles(symbol: string, interval: string): Promise<CandlestickData[]> {
@@ -60,10 +61,7 @@ async function initializeChart() {
     height: chartContainer.value.clientHeight,
     layout: { background: { color: '#000' }, textColor: '#ccc' },
     grid: { vertLines: { color: '#444' }, horzLines: { color: '#444' } },
-    timeScale: {
-      timeVisible: true,
-      rightOffset: 5
-    },
+    timeScale: { timeVisible: true, rightOffset: 5 },
     crosshair: { mode: CrosshairMode.Normal },
     interaction: {
       mouseWheel: { scale: 1.5 },
@@ -92,24 +90,28 @@ async function initializeChart() {
 }
 
 function updateDisplayedCandles() {
-  if (candleSeries) {
-    if (props.isBacktesting && props.backtestingStartIndex !== null) {
-      candleSeries.setData(allCandles.slice(0, props.currentIndex + 1))
-    } else {
-      candleSeries.setData(allCandles)
-    }
+  if (!candleSeries) return
+
+  if (props.isBacktesting && props.backtestingStartIndex !== null) {
+    candleSeries.setData(allCandles.slice(0, props.currentIndex + 1))
+  } else {
+    candleSeries.setData(allCandles)
   }
 
-  // Emitir el precio actual si aplica
+  // Emitir datos actualizados de la vela actual
   if (props.isBacktesting && allCandles.length > props.currentIndex) {
-    const price = allCandles[props.currentIndex]?.close
-    if (price) emit('update:currentPrice', price)
+    const candle = allCandles[props.currentIndex]
+    if (candle) {
+      emit('update:currentPrice', candle.close)
+      emit('update:currentCandle', candle)
+    }
   }
 }
 
-// 🔁 Actualiza velas + emite precio actual cuando cambie índice
+// 🔁 Reacción ante cambios de backtesting
 watch(() => [props.isBacktesting, props.currentIndex, props.backtestingStartIndex], updateDisplayedCandles)
 
+// 🔁 Cambio de par o timeframe
 watch(() => [props.timeframe, props.symbol], async () => {
   if (chart) {
     allCandles = await fetchBinanceCandles(props.symbol, props.timeframe)

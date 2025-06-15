@@ -1,9 +1,13 @@
 <template>
+  <!-- Mostrar advertencia si no se puede operar aún -->
+<!-- ✅ Correcto -->
+
   <div class="trade-panel">
     <div class="panel-header">
       <span class="title">Abrir Operación</span>
       <n-button size="small" tertiary @click="resetPanel">Volver</n-button>
     </div>
+<!-- Mostrar advertencia si no se puede operar aún -->
 
     <!-- Nivel 1: Compra o Venta -->
     <div v-if="!form.side" class="trade-form">
@@ -16,7 +20,9 @@
       <n-button block type="primary" @click="selectOrderType('market')">Mercado</n-button>
       <n-button block type="warning" @click="selectOrderType('limit')">Límite</n-button>
     </div>
-
+    <div v-else-if="!canTrade" class="trade-form text-center text-yellow-400">
+      Selecciona el punto de inicio en el gráfico para comenzar a operar.
+    </div>
     <!-- Nivel 3: Formulario completo -->
     <div v-else class="trade-form">
       <n-form :model="form" label-placement="left">
@@ -57,7 +63,7 @@
           <n-input-number v-model:value="form.leverage" :min="1" :max="100" />
         </n-form-item>
 
-        <n-button type="primary" block @click="submitTrade">
+        <n-button type="primary" block :disabled="!canSubmit" @click="submitTrade">
           Ejecutar Operación
         </n-button>
       </n-form>
@@ -66,7 +72,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { ref, reactive, computed } from 'vue'
 import {
   NButton,
   NForm,
@@ -74,9 +80,28 @@ import {
   NInputNumber
 } from 'naive-ui'
 
+// Computed para bloquear el botón cuando no es válido
+const canSubmit = computed(() => {
+  // No puede operar si el balance es 0 o menos
+  if (props.balance <= 0) return false
+
+  // Para orden limit, entrada válida es obligatoria
+  if (form.orderType === 'limit') {
+    return (
+      form.entryPrice != null &&
+      form.entryPrice > 0 &&
+      validateEntryPrice() !== 'error'
+    )
+  }
+
+  // En mercado no hay restricción de entrada
+  return true
+})
+
 const props = defineProps<{
   currentPrice: number
   balance: number
+  canTrade: boolean
 }>()
 
 const emit = defineEmits<{
@@ -91,15 +116,19 @@ const form = reactive<{
   takeProfit: number | null
   volume: number
   leverage: number
-}>({
-  side: null,
-  orderType: null,
-  entryPrice: null,
-  stopLoss: null,
-  takeProfit: null,
-  volume: 1,
-  leverage: 1
-})
+}>(initForm())
+
+function initForm() {
+  return {
+    side: null,
+    orderType: null,
+    entryPrice: null,
+    stopLoss: null,
+    takeProfit: null,
+    volume: 1,
+    leverage: 1
+  }
+}
 
 function selectSide(side: 'buy' | 'sell') {
   form.side = side
@@ -107,29 +136,21 @@ function selectSide(side: 'buy' | 'sell') {
 
 function selectOrderType(type: 'market' | 'limit') {
   form.orderType = type
-  if (type === 'market') {
-    form.entryPrice = props.currentPrice
-  } else {
-    form.entryPrice = null
-  }
+  form.entryPrice = type === 'market' ? props.currentPrice : null
 }
 
 function resetPanel() {
-  form.side = null
-  form.orderType = null
-  form.entryPrice = null
-  form.stopLoss = null
-  form.takeProfit = null
-  form.volume = 1
-  form.leverage = 1
+  Object.assign(form, initForm())
 }
 
 function submitTrade() {
+  if (!canSubmit.value) return
   if (form.orderType === 'limit' && validateEntryPrice() === 'error') return
 
   emit('open-trade', {
     ...form,
-    entryPrice: form.orderType === 'market' ? props.currentPrice : form.entryPrice
+    entryPrice: form.orderType === 'market' ? props.currentPrice : form.entryPrice,
+    active: form.orderType === 'market'
   })
 
   resetPanel()

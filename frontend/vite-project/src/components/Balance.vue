@@ -15,9 +15,10 @@
               v-model:value="balance"
               :min="10"
               :max="1000000"
+              :disabled="isLocked"
             />
           </n-form-item>
-          <n-button type="primary" block @click="applyBalance">
+          <n-button type="primary" block @click="applyBalance" :disabled="isLocked">
             Establecer Saldo
           </n-button>
         </n-form>
@@ -27,7 +28,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed, watch } from 'vue'
 import {
   NButton,
   NCollapseTransition,
@@ -38,6 +39,8 @@ import {
 
 const showBalance = ref(false)
 const balance = ref(1000)
+const locked = ref(false)
+
 const emit = defineEmits<{
   (e: 'set-balance', value: number): void
 }>()
@@ -47,13 +50,24 @@ function toggleBalance() {
 }
 
 function applyBalance() {
-  emit('set-balance', balance.value)
-  showBalance.value = false
+  if (balance.value > 0) {
+    locked.value = true
+    emit('set-balance', balance.value)
+    showBalance.value = false
+  }
 }
+
+const isLocked = computed(() => locked.value && balance.value > 0)
+
+// Si el balance llega a 0, desbloquear
+watch(balance, (val) => {
+  if (val <= 0) {
+    locked.value = false
+  }
+})
 </script>
 
 <style scoped>
-/* Forzar color blanco en texto de Naive UI */
 :deep(.n-form-item-label),
 :deep(.n-input-number .n-input__input),
 :deep(.n-button__content) {

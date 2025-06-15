@@ -1,14 +1,13 @@
 <template>
   <div class="position-card" :class="form.side">
-    <!-- Header + Entrada = zona de clic para expandir -->
     <div class="summary" @click="toggleDetails">
       <div class="header">
         <strong>{{ symbol }}</strong>
         <span @click.stop="showConfirm = true" class="close">×</span>
       </div>
-      <div class="entry">Entrada: {{ form.entryPrice.toFixed(2) }} USDT</div>
+      <div class="entry">Entrada: {{ form.entryPrice?.toFixed(2) || '-' }} USDT</div>
       <div class="details">
-        <div>Volumen: {{ form.volume }}</div>
+        <div>Volumen: {{ form.volume }} USDT</div>
         <div>
           ROI:
           <span :class="roi >= 0 ? 'profit' : 'loss'">
@@ -24,31 +23,34 @@
       </div>
     </div>
 
-    <!-- Detalles avanzados -->
     <n-collapse-transition :show="showDetails">
       <div class="advanced">
         <n-form label-placement="left" size="small">
           <n-form-item label="Stop Loss">
-            <n-input-number v-model:value="form.stopLoss" :min="0" />
+            <n-input-number
+              v-model:value="form.stopLoss"
+              :min="0"
+              :status="stopLossInvalid ? 'error' : undefined"
+            />
           </n-form-item>
           <n-form-item label="Take Profit">
-            <n-input-number v-model:value="form.takeProfit" :min="0" />
+            <n-input-number
+              v-model:value="form.takeProfit"
+              :min="0"
+              :status="takeProfitInvalid ? 'error' : undefined"
+            />
           </n-form-item>
         </n-form>
-        <n-button type="error" block size="small" @click.stop="showConfirm = true">
-          Cerrar operación
-        </n-button>
       </div>
     </n-collapse-transition>
 
-    <!-- Confirmación -->
     <n-modal
       v-model:show="showConfirm"
       preset="dialog"
       title="Cerrar operación"
       positive-text="Sí"
       negative-text="No"
-      @positive-click="$emit('close')"
+      @positive-click="emit('close', pnl, currentPrice)"
       @negative-click="showConfirm = false"
     >
       ¿Estás seguro de que deseas cerrar esta operación?
@@ -56,21 +58,34 @@
   </div>
 </template>
 
-
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import { NForm, NFormItem, NInputNumber, NButton, NModal, NCollapseTransition } from 'naive-ui'
+import { ref, watch, computed } from 'vue'
+import {
+  NForm,
+  NFormItem,
+  NInputNumber,
+  NCollapseTransition,
+  NModal
+} from 'naive-ui'
 
 const props = defineProps<{
   form: {
     side: 'buy' | 'sell'
+    orderType: 'market' | 'limit'
     entryPrice: number
     volume: number
     stopLoss?: number | null
     takeProfit?: number | null
+    leverage: number
+    active: boolean
   }
   symbol: string
   currentPrice: number
+  currentCandle: { high: number; low: number }
+}>()
+
+const emit = defineEmits<{
+  (e: 'close', pnl: number, closePrice: number): void
 }>()
 
 const showConfirm = ref(false)
@@ -80,17 +95,82 @@ function toggleDetails() {
   showDetails.value = !showDetails.value
 }
 
-const pnl = computed(() => {
-  const diff = props.currentPrice - props.form.entryPrice
-  return props.form.side === 'buy'
-    ? diff * props.form.volume
-    : -diff * props.form.volume
+// Activar orden limit cuando el precio pase por el punto de entrada
+watch(() => [props.form.active, props.currentCandle], () => {
+  if (!props.form.active && props.form.orderType === 'limit') {
+    const entry = props.form.entryPrice
+    const { high, low } = props.currentCandle
+    const shouldActivate =
+      (props.form.side === 'buy' && low <= entry) ||
+      (props.form.side === 'sell' && high >= entry)
+
+    if (shouldActivate) {
+      props.form.active = true
+    }
+  }
+
+  if (props.form.active) {
+    const { high, low } = props.currentCandle
+    const stop = props.form.stopLoss
+    const take = props.form.takeProfit
+    const entry = props.form.entryPrice
+    const amount = props.form.volume / entry
+    let closePrice: number | null = null
+
+    if (props.form.side === 'buy') {
+      if (stop && low <= stop) closePrice = stop
+      else if (take && high >= take) closePrice = take
+    } else {
+      if (stop && high >= stop) closePrice = stop
+      else if (take && low <= take) closePrice = take
+    }
+
+    if (closePrice !== null) {
+      const priceDiff = closePrice - entry
+      const profit = props.form.side === 'buy'
+        ? priceDiff * amount
+        : -priceDiff * amount
+      const leveragedPnl = profit * props.form.leverage
+      emit('close', leveragedPnl, closePrice)
+    }
+  }
 })
 
-const roi = computed(() => {
-  const base = props.form.entryPrice * props.form.volume
-  return (pnl.value / base) * 100
+// Calcula la cantidad de activo comprado: volumen / precio de entrada
+const assetAmount = computed(() => {
+  return props.form.volume / props.form.entryPrice
 })
+
+// PnL basado en la diferencia porcentual del activo multiplicado por leverage y volumen
+const pnl = computed(() => {
+  if (!props.form.active) return 0
+  const diff = props.currentPrice - props.form.entryPrice
+  const basePnl = props.form.side === 'buy'
+    ? diff * assetAmount.value
+    : -diff * assetAmount.value
+
+  return basePnl * props.form.leverage
+})
+
+// ROI = (pnl / inversión inicial) * 100
+const roi = computed(() => {
+  if (!props.form.active) return 0
+  const investment = props.form.volume
+  return (pnl.value / investment) * 100
+})
+
+// Validaciones SL y TP
+const stopLossInvalid = computed(() =>
+  props.form.stopLoss != null &&
+  ((props.form.side === 'buy' && props.form.stopLoss >= props.currentPrice) ||
+   (props.form.side === 'sell' && props.form.stopLoss <= props.currentPrice))
+)
+
+const takeProfitInvalid = computed(() =>
+  props.form.takeProfit != null &&
+  ((props.form.side === 'buy' && props.form.takeProfit <= props.currentPrice) ||
+   (props.form.side === 'sell' && props.form.takeProfit >= props.currentPrice))
+)
 </script>
 
 <style scoped>
@@ -134,16 +214,13 @@ const roi = computed(() => {
   padding-top: 0.5rem;
   border-top: 1px solid #555;
 }
-/* ✅ Forzar color blanco en etiquetas Naive UI */
 :deep(.n-form-item-label) {
   color: white !important;
 }
-
 :deep(.n-input-number .n-input__input) {
   color: black !important;
   background-color: white !important;
 }
-
 .profit {
   color: #4caf50;
 }
