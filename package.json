@@ -7,7 +7,7 @@
     "dev-frontend": "vite",
     "build-frontend": "vue-tsc -b && vite build",
     "preview-frontend": "vite preview",
-    "start-backend": "node backend/server.js",
+    "start-backend": "cd backend && uvicorn backend_python.main:app --reload --port 8080",
     "install-all": "npm install --prefix backend && npm install --prefix frontend",
     "dev": "concurrently \"npm run dev-frontend\" \"npm run start-backend\""
   },
@@ -21,7 +21,8 @@
     "socket.io": "^4.8.1",
     "socket.io-client": "^4.8.1",
     "tailwindcss": "^4.1.1",
-    "vue": "^3.5.13"
+    "vue": "^3.5.13",
+    "vue-router": "^4.5.1"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^5.2.1",

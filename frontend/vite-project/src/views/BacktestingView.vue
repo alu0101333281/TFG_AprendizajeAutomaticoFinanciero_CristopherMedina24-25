@@ -1,5 +1,6 @@
 <template>
   <div class="h-screen w-screen grid grid-cols-[60px_1fr_300px] grid-rows-[auto_1fr] bg-gray-900 text-white">
+    <UserInfo />
     <div class="row-span-2 bg-gray-800 border-r border-gray-700 p-2 flex flex-col gap-2">
       <DrawingTools />
     </div>
@@ -69,13 +70,14 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import axios from 'axios'
-import Chart from '@/components/Chart.vue'
-import Controls from '@/components/Controls.vue'
-import Timeframes from '@/components/TimeFrames.vue'
-import PairList from '@/components/PairList.vue'
-import DrawingTools from '@/components/DrawingTools.vue'
-import TradePanel from '@/components/TradePanel.vue'
-import OpenPosition from '@/components/OpenPositions.vue'
+import Chart from '../components/Chart.vue'
+import Controls from '../components/Controls.vue'
+import Timeframes from '../components/TimeFrames.vue'
+import PairList from '../components/PairList.vue'
+import DrawingTools from '../components/DrawingTools.vue'
+import TradePanel from '../components/TradePanel.vue'
+import OpenPosition from '../components/OpenPositions.vue'
+import UserInfo from '../components/UserInfo.vue'
 
 const selectedPair = ref('BTCUSDT')
 const selectedTimeframe = ref('1m')

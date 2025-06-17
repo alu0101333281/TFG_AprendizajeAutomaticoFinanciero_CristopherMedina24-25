@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import chart from './views/BacktestingView.vue'
+import login from './views/LoginView.vue'
+import register from './views/RegisterView.vue'
 </script>
 
 <template>
-<chart />
+<router-view />
 </template>
 
 <style scoped>
