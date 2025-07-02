@@ -2,6 +2,7 @@
   <div class="h-screen w-screen grid grid-cols-[60px_1fr_300px] grid-rows-[auto_1fr] bg-gray-900 text-white">
     <UserInfo />
     <ClosedTrades />
+    <TradeStats />
     <div class="row-span-2 bg-gray-800 border-r border-gray-700 p-2 flex flex-col gap-2">
       <DrawingTools />
     </div>
@@ -81,6 +82,7 @@ import TradePanel from '../components/TradePanel.vue'
 import OpenPosition from '../components/OpenPositions.vue'
 import UserInfo from '../components/UserInfo.vue'
 import ClosedTrades from '../components/ClosedTrades.vue'
+import TradeStats from '../components/TradeStats.vue'
 const userStore = useUserStore()
 const selectedPair = ref('BTCUSDT')
 const selectedTimeframe = ref('1m')
