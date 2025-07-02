@@ -11,6 +11,9 @@
         <input id="password" type="password" v-model="form.password" required />
       </div>
       <button type="submit">Registrarse</button>
+      <n-form-item label="Balance inicial">
+        <n-input-number v-model:value="form.balance" :min="1" required placeholder="Ej: 1000" />
+      </n-form-item>
       <p v-if="error" class="error">{{ error }}</p>
     </form>
     <p>
@@ -28,7 +31,8 @@ const router = useRouter()
 
 const form = ref({
   username: '',
-  password: ''
+  password: '',
+  balance: 1000
 })
 
 const error = ref('')

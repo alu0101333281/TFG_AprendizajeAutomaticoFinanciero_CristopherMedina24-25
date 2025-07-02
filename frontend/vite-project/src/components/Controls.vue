@@ -6,11 +6,11 @@
     </button>
 
     <!-- Botones de navegación -->
-    <button @click="$emit('prev-candle')" class="btn">⏪</button>
+    <button @click="$emit('prev-candle')" class="btn"><<</button>
     <button @click="$emit('toggle-play')" class="btn">
-      {{ isPlaying ? '⏸️ Pause' : '▶️ Play' }}
+      {{ isPlaying ? ' Pause' : ' Play' }}
     </button>
-    <button @click="$emit('next-candle')" class="btn">⏩</button>
+    <button @click="$emit('next-candle')" class="btn">>></button>
 
     <!-- Control de velocidad -->
     <div class="flex items-center gap-2">

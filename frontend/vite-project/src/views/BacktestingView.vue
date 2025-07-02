@@ -24,7 +24,7 @@
 
     <div class="relative bg-black">
       <div class="absolute top-2 right-4 z-10 text-white text-lg font-bold bg-gray-800 px-4 py-1 rounded shadow">
-        Balance: {{ balance.toFixed(2) }} USDT
+        Balance: {{ userStore.balance.toFixed(2) }} USDT
       </div>
       <Chart
         :timeframe="selectedTimeframe"
@@ -46,30 +46,31 @@
 
     <div>
       <TradePanel
-        :balance="balance"
+        :balance="userStore.balance"
         :currentPrice="currentPrice"
         :canTrade="backtestingStartIndex !== null"
         @open-trade="handleOpenTrade"
       />
     </div>
 
-    <div class="open-positions">
-      <OpenPosition
-        v-for="position in openPositions"
-        :key="position.id"
-        :form="position"
-        :symbol="selectedPair"
-        :currentPrice="currentPrice"
-        :currentCandle="currentCandle"
-        @close="(pnl, closePrice) => handleClosePosition(position.id, pnl, closePrice)"
-      />
-    </div>
+<div>
+  <OpenPosition
+    v-for="position in openPositions"
+    :key="position.id"
+    :form="position"
+    :symbol="selectedPair"
+    :currentPrice="currentPrice"
+    :currentCandle="currentCandle"
+    @close="(pnl, closePrice) => handleClosePosition(position.id, pnl, closePrice)"
+  />
+</div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import axios from 'axios'
+import { useUserStore } from '../stores/user'
 import Chart from '../components/Chart.vue'
 import Controls from '../components/Controls.vue'
 import Timeframes from '../components/TimeFrames.vue'
@@ -79,6 +80,7 @@ import TradePanel from '../components/TradePanel.vue'
 import OpenPosition from '../components/OpenPositions.vue'
 import UserInfo from '../components/UserInfo.vue'
 
+const userStore = useUserStore()
 const selectedPair = ref('BTCUSDT')
 const selectedTimeframe = ref('1m')
 const rawCandleData = ref<any[]>([])
@@ -92,12 +94,13 @@ const currentIndex = ref(0)
 const isPlaying = ref(false)
 const playSpeed = ref(500)
 
-let baseBalance = 1000
-const balance = ref(baseBalance)
-
 const openPositions = ref<any[]>([])
 
 let intervalId: ReturnType<typeof setInterval> | null = null
+
+onMounted(async () => {
+  await userStore.fetchUserInfo()
+})
 
 function toggleBacktestingMode() {
   isBacktesting.value = !isBacktesting.value
@@ -114,19 +117,15 @@ function activateSelectionMode() {
 }
 
 function handleBacktestingStart(index: number) {
-  // Resetear el punto de inicio y la vela actual
   backtestingStartIndex.value = index
   currentIndex.value = index
   isSelectingStart.value = false
-
-  // Cerrar todas las operaciones abiertas sin afectar el balance
   openPositions.value = []
 }
 
 function togglePlay() {
   isPlaying.value = !isPlaying.value
-  if (isPlaying.value) startPlayback()
-  else stopPlayback()
+  isPlaying.value ? startPlayback() : stopPlayback()
 }
 
 function startPlayback() {
@@ -186,17 +185,30 @@ function handleOpenTrade(trade: any) {
   openPositions.value.push({
     ...trade,
     id: Date.now(),
-    active: trade.orderType === 'market' // market se activa de inmediato
+    active: trade.orderType === 'market'
   })
 }
 
-function handleClosePosition(id: number, pnl: number, closePrice: number) {
+async function handleClosePosition(id: number, pnl: number, closePrice: number) {
   const index = openPositions.value.findIndex(pos => pos.id === id)
   if (index !== -1) {
     openPositions.value.splice(index, 1)
-    baseBalance += pnl
-    if (baseBalance < 0) baseBalance = 0
-    balance.value = baseBalance
+    userStore.balance += pnl
+    if (userStore.balance < 0) userStore.balance = 0
+    // ⬇️ Guardar balance actualizado en la base de datos
+    try {
+      const token = localStorage.getItem('token')
+      await fetch('http://localhost:8080/users/update_balance', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ balance: userStore.balance })
+      })
+    } catch (e) {
+      console.error('Error actualizando balance:', e)
+    }
   }
 }
 
@@ -207,11 +219,12 @@ function checkForAutoClose() {
     if (!pos.active) continue
 
     const assetAmount = pos.volume / pos.entryPrice
-    const maxLoss = -pos.volume
-    let closePrice: number | null = null
-    let pnl = 0
+    const diff = currentPrice.value - pos.entryPrice
+    const rawPnl = pos.side === 'buy' ? diff * assetAmount : -diff * assetAmount
+    const leveragedPnl = rawPnl * pos.leverage
 
-    // Check SL/TP
+    let closePrice: number | null = null
+
     if (pos.stopLoss) {
       const hitSL =
         (pos.side === 'buy' && low <= pos.stopLoss) ||
@@ -226,14 +239,7 @@ function checkForAutoClose() {
       if (hitTP) closePrice = pos.takeProfit
     }
 
-    // Check liquidación por pérdida = volumen total
-    const diff = currentPrice.value - pos.entryPrice
-    const rawPnl = pos.side === 'buy'
-      ? diff * assetAmount
-      : -diff * assetAmount
-    const leveragedPnl = rawPnl * pos.leverage
-
-    if (!closePrice && leveragedPnl <= maxLoss) {
+    if (!closePrice && (userStore.balance + leveragedPnl <= 0)) {
       closePrice = pos.side === 'buy'
         ? pos.entryPrice - (pos.volume / (assetAmount * pos.leverage))
         : pos.entryPrice + (pos.volume / (assetAmount * pos.leverage))
@@ -252,15 +258,3 @@ function checkForAutoClose() {
 
 fetchBinanceData(selectedPair.value, selectedTimeframe.value)
 </script>
-
-<style scoped>
-.open-positions {
-  position: fixed;
-  bottom: 1rem;
-  left: 1rem;
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  z-index: 999;
-}
-</style>

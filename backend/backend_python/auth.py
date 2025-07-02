@@ -4,7 +4,7 @@ from pymongo.collection import Collection
 import bcrypt
 from jose import JWTError, jwt
 import datetime
-from backend_python.models import UserIn
+from backend_python.models import LoginUser, RegisterUser
 
 # Secret y algoritmo
 SECRET_KEY = "clave_super_secreta"  # ¡Cámbiala por algo seguro!
@@ -41,16 +41,20 @@ def get_current_user(request: Request) -> str:
         raise HTTPException(status_code=401, detail="Token inválido")
 
 # 📋 Registro de usuario
-def register_user(user: UserIn, users_collection: Collection):
+def register_user(user: RegisterUser, users_collection: Collection):
     if users_collection.find_one({"username": user.username}):
         raise HTTPException(status_code=400, detail="El usuario ya existe.")
     
     hashed_pw = hash_password(user.password)
-    users_collection.insert_one({"username": user.username, "password": hashed_pw})
+    users_collection.insert_one({
+        "username": user.username,
+        "password": hashed_pw,
+        "balance": user.balance
+    })
     return {"message": "Usuario registrado con éxito"}
 
 # 🔐 Login
-def login_user(user: UserIn, users_collection: Collection):
+def login_user(user: LoginUser, users_collection: Collection):
     db_user = users_collection.find_one({"username": user.username})
     if not db_user or not verify_password(user.password, db_user["password"]):
         raise HTTPException(status_code=401, detail="Credenciales inválidas.")

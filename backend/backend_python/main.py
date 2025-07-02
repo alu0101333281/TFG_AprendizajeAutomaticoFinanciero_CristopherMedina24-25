@@ -1,8 +1,7 @@
 from fastapi import FastAPI
 from backend_python.database import users_collection
 from fastapi.middleware.cors import CORSMiddleware
-from backend_python.auth import UserIn, register_user, login_user, get_current_user
-from backend_python.models import UserIn
+from backend_python.auth import register_user, login_user
 from fastapi import Depends
 from backend_python.routers import users
 app = FastAPI()

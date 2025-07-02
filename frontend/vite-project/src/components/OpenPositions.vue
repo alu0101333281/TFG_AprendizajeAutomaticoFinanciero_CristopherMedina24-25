@@ -5,9 +5,13 @@
         <strong>{{ symbol }}</strong>
         <span @click.stop="showConfirm = true" class="close">×</span>
       </div>
-      <div class="entry">Entrada: {{ form.entryPrice?.toFixed(2) || '-' }} USDT</div>
+      <div class="entry">
+        Entrada: {{ form.entryPrice?.toFixed(2) || '-' }} USDT
+      </div>
       <div class="details">
-        <div>Volumen: {{ form.volume }} USDT</div>
+        <div>
+          Volumen: {{ (form.volume * (form.leverage || 1)).toFixed(2) }} USDT
+        </div>
         <div>
           ROI:
           <span :class="roi >= 0 ? 'profit' : 'loss'">
@@ -67,6 +71,8 @@ import {
   NCollapseTransition,
   NModal
 } from 'naive-ui'
+import { useUserStore } from '@/stores/user'
+const userStore = useUserStore()
 
 const props = defineProps<{
   form: {
