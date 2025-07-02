@@ -9,3 +9,4 @@ client = MongoClient(MONGO_URI)
 
 db = client["trading_app"]
 users_collection = db["users"]
+closed_trades_collection = db["closed_trades"]

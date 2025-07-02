@@ -7,7 +7,8 @@ from backend_python.auth import (
 )
 from backend_python.database import users_collection
 from backend_python.models import LoginUser, RegisterUser, BalanceUpdate
-
+from backend_python.database import closed_trades_collection
+from backend_python.models import ClosedTrade
 router = APIRouter(
     prefix="/users",
     tags=["users"]
@@ -45,3 +46,16 @@ def update_balance(
     if result.modified_count == 0:
         raise HTTPException(status_code=400, detail="No se pudo actualizar el balance")
     return {"message": "Balance actualizado correctamente"}
+
+
+@router.post("/close_trade")
+def close_trade(trade: ClosedTrade, username: str = Depends(get_current_user)):
+    trade_dict = trade.dict()
+    trade_dict["username"] = username
+    closed_trades_collection.insert_one(trade_dict)
+    return {"message": "Operación guardada"}
+
+@router.get("/closed_trades")
+def get_closed_trades(username: str = Depends(get_current_user)):
+    trades = list(closed_trades_collection.find({"username": username}, {"_id": 0}))
+    return trades

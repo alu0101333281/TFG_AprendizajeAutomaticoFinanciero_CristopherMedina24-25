@@ -1,6 +1,7 @@
 <template>
   <div class="h-screen w-screen grid grid-cols-[60px_1fr_300px] grid-rows-[auto_1fr] bg-gray-900 text-white">
     <UserInfo />
+    <ClosedTrades />
     <div class="row-span-2 bg-gray-800 border-r border-gray-700 p-2 flex flex-col gap-2">
       <DrawingTools />
     </div>
@@ -79,7 +80,7 @@ import DrawingTools from '../components/DrawingTools.vue'
 import TradePanel from '../components/TradePanel.vue'
 import OpenPosition from '../components/OpenPositions.vue'
 import UserInfo from '../components/UserInfo.vue'
-
+import ClosedTrades from '../components/ClosedTrades.vue'
 const userStore = useUserStore()
 const selectedPair = ref('BTCUSDT')
 const selectedTimeframe = ref('1m')
@@ -191,24 +192,57 @@ function handleOpenTrade(trade: any) {
 
 async function handleClosePosition(id: number, pnl: number, closePrice: number) {
   const index = openPositions.value.findIndex(pos => pos.id === id)
-  if (index !== -1) {
-    openPositions.value.splice(index, 1)
-    userStore.balance += pnl
-    if (userStore.balance < 0) userStore.balance = 0
-    // ⬇️ Guardar balance actualizado en la base de datos
-    try {
-      const token = localStorage.getItem('token')
-      await fetch('http://localhost:8080/users/update_balance', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ balance: userStore.balance })
-      })
-    } catch (e) {
-      console.error('Error actualizando balance:', e)
+  if (index === -1) return
+
+  const position = openPositions.value[index]
+  openPositions.value.splice(index, 1)
+
+  userStore.balance += pnl
+  if (userStore.balance < 0) userStore.balance = 0
+
+  try {
+    const token = localStorage.getItem('token')
+
+    // 1. Actualizar balance
+    await fetch('http://localhost:8080/users/update_balance', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ balance: userStore.balance })
+    })
+
+    // 2. Enviar la operación cerrada al backend
+    const now = new Date().toISOString()
+    const roi = (pnl / position.volume) * 100
+
+    const tradeData = {
+      side: position.side,
+      entry_price: position.entryPrice,
+      exit_price: closePrice,
+      volume: position.volume,
+      leverage: position.leverage,
+      entry_time: now, 
+      exit_time: now,
+      pnl,
+      roi,
+      symbol: selectedPair.value
     }
+
+    await fetch('http://localhost:8080/users/close_trade', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify(tradeData)
+    })
+
+    // 3. Recargar operaciones cerradas tras guardar
+    await userStore.fetchClosedTrades()
+  } catch (e) {
+    console.error('Error al cerrar operación:', e)
   }
 }
 
