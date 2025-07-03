@@ -24,7 +24,8 @@ const props = defineProps({
   isBacktesting: { type: Boolean, required: true },
   currentIndex: { type: Number, required: false, default: 0 },
   selectionMode: { type: Boolean, required: false, default: false },
-  backtestingStartIndex: { type: Number, required: false, default: null }
+  backtestingStartIndex: { type: Number, required: false, default: null },
+  selectedTool: { type: String, default: null }
 })
 
 const emit = defineEmits<{
@@ -32,7 +33,10 @@ const emit = defineEmits<{
   (e: 'update:currentIndex', index: number): void
   (e: 'update:currentPrice', value: number): void
   (e: 'update:currentCandle', value: CandlestickData): void
+  (e: 'clear-tool'): void
 }>()
+
+const drawingClicks = ref<{ time: number; price: number }[]>([])
 
 async function fetchBinanceCandles(symbol: string, interval: string): Promise<CandlestickData[]> {
   const url = `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=500`
@@ -51,6 +55,55 @@ function resizeChart() {
   if (chart && chartContainer.value) {
     chart.resize(chartContainer.value.clientWidth, chartContainer.value.clientHeight)
   }
+}
+
+function handleDrawClick(param: any) {
+  if (!param.time || !param.seriesPrices) return
+  if (!candleSeries || !param.seriesPrices.has(candleSeries)) return
+  const price = param.seriesPrices.get(candleSeries) as number
+  const time = param.time
+
+  drawingClicks.value.push({ time, price })
+
+  const drawLine = (
+  points: { time: number; price: number }[],
+  color = '#f0f'
+) => {
+  chart?.addLineSeries({ color, lineWidth: 2 }).setData(
+    points.map(p => ({
+      time: p.time as UTCTimestamp,
+      value: p.price
+    }))
+  )
+}
+
+  if (props.selectedTool === 'horizontal') {
+    drawLine([
+      { time: allCandles[0]?.time || time, price },
+      { time: allCandles[allCandles.length - 1]?.time || time + 100, price }
+    ], '#4caf50')
+    finishDrawing()
+  } else if (props.selectedTool === 'vertical') {
+    drawLine([
+      { time, price: price - 50 },
+      { time, price: price + 50 }
+    ], '#2196f3')
+    finishDrawing()
+  } else if (props.selectedTool === 'line' && drawingClicks.value.length === 2) {
+    drawLine(drawingClicks.value, '#ff9800')
+    finishDrawing()
+  } else if (props.selectedTool === 'channel' && drawingClicks.value.length === 2) {
+    const [p1, p2] = drawingClicks.value
+    drawLine([p1, p2], '#ab47bc')
+    drawLine([{ ...p1, price: p1.price + 50 }, { ...p2, price: p2.price + 50 }], '#ab47bc')
+    finishDrawing()
+  }
+}
+
+
+function finishDrawing() {
+  drawingClicks.value = []
+  emit('clear-tool')
 }
 
 async function initializeChart() {
@@ -82,6 +135,8 @@ async function initializeChart() {
     if (props.selectionMode && param.time && typeof param.time === 'number') {
       const index = allCandles.findIndex(c => c.time === param.time)
       if (index !== -1) emit('select-start', index)
+    } else if (props.selectedTool) {
+      handleDrawClick(param)
     }
   })
 
@@ -98,7 +153,6 @@ function updateDisplayedCandles() {
     candleSeries.setData(allCandles)
   }
 
-  // Emitir datos actualizados de la vela actual
   if (props.isBacktesting && allCandles.length > props.currentIndex) {
     const candle = allCandles[props.currentIndex]
     if (candle) {
@@ -108,10 +162,8 @@ function updateDisplayedCandles() {
   }
 }
 
-// 🔁 Reacción ante cambios de backtesting
 watch(() => [props.isBacktesting, props.currentIndex, props.backtestingStartIndex], updateDisplayedCandles)
 
-// 🔁 Cambio de par o timeframe
 watch(() => [props.timeframe, props.symbol], async () => {
   if (chart) {
     allCandles = await fetchBinanceCandles(props.symbol, props.timeframe)
@@ -130,10 +182,3 @@ onBeforeUnmount(() => {
 })
 </script>
 
-<style scoped>
-.chart-container {
-  width: 100%;
-  height: 100%;
-  min-height: 400px;
-}
-</style>

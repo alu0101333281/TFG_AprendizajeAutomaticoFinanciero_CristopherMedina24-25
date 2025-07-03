@@ -41,25 +41,5 @@ function logout() {
 </script>
 
 <style scoped>
-.user-info {
-  position: fixed;
-  top: 10px;
-  right: 10px;
-  background: #1e1e1e;
-  color: white;
-  padding: 0.5rem 1rem;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
 
-.user-info button {
-  background: #f44336;
-  color: white;
-  border: none;
-  padding: 4px 8px;
-  border-radius: 4px;
-  cursor: pointer;
-}
 </style>

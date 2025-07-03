@@ -3,10 +3,6 @@
     <UserInfo />
     <ClosedTrades />
     <TradeStats />
-    <div class="row-span-2 bg-gray-800 border-r border-gray-700 p-2 flex flex-col gap-2">
-      <DrawingTools />
-    </div>
-
     <div class="col-span-1 bg-gray-900 border-b border-gray-800 p-2 flex items-center justify-start gap-4">
       <Timeframes @update:timeframe="handleTimeframeChange" />
       <button @click="toggleBacktestingMode" class="bg-blue-600 px-4 py-2 rounded text-white">
@@ -28,6 +24,7 @@
       <div class="absolute top-2 right-4 z-10 text-white text-lg font-bold bg-gray-800 px-4 py-1 rounded shadow">
         Balance: {{ userStore.balance.toFixed(2) }} USDT
       </div>
+      <DrawingTools @draw-tool="handleToolSelect" />
       <Chart
         :timeframe="selectedTimeframe"
         :symbol="selectedPair"
@@ -39,6 +36,8 @@
         @update:currentIndex="val => currentIndex = val"
         @update:currentPrice="val => currentPrice = val"
         @update:currentCandle="val => currentCandle = val"
+        :selectedTool="selectedTool"
+        @clear-tool="() => selectedTool = null"
       />
     </div>
 
@@ -89,16 +88,14 @@ const selectedTimeframe = ref('1m')
 const rawCandleData = ref<any[]>([])
 const currentPrice = ref(0)
 const currentCandle = ref({ high: 0, low: 0 })
-
 const isBacktesting = ref(false)
 const isSelectingStart = ref(false)
 const backtestingStartIndex = ref<number | null>(null)
 const currentIndex = ref(0)
 const isPlaying = ref(false)
 const playSpeed = ref(500)
-
 const openPositions = ref<any[]>([])
-
+const selectedTool = ref<string | null>(null)
 let intervalId: ReturnType<typeof setInterval> | null = null
 
 onMounted(async () => {
@@ -184,6 +181,9 @@ function handleTimeframeChange(tf: string) {
   fetchBinanceData(selectedPair.value, tf)
 }
 
+function handleToolSelect(tool: string) {
+  selectedTool.value = tool
+}
 function handleOpenTrade(trade: any) {
   openPositions.value.push({
     ...trade,

@@ -53,19 +53,3 @@ const activateSelectionMode = () => {
 }
 </script>
 
-<style scoped>
-.controls {
-  background-color: #2d2d2d;
-  border-radius: 0.5rem;
-}
-.btn {
-  background-color: #444;
-  color: white;
-  padding: 0.5rem 1rem;
-  border-radius: 0.25rem;
-  transition: background-color 0.2s;
-}
-.btn:hover {
-  background-color: #666;
-}
-</style>

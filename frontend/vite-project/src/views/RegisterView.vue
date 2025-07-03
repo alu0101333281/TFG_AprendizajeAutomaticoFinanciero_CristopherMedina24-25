@@ -10,10 +10,19 @@
         <label for="password">Contraseña</label>
         <input id="password" type="password" v-model="form.password" required />
       </div>
+<div class="form-group">
+  <label for="balance">Balance inicial</label>
+  <n-input-number
+    id="balance"
+    v-model:value="form.balance"
+    :min="1"
+    placeholder="Ej: 1000"
+    class="balance-input"
+  />
+</div>
+
       <button type="submit">Registrarse</button>
-      <n-form-item label="Balance inicial">
-        <n-input-number v-model:value="form.balance" :min="1" required placeholder="Ej: 1000" />
-      </n-form-item>
+
       <p v-if="error" class="error">{{ error }}</p>
     </form>
     <p>
@@ -88,5 +97,29 @@ button:hover {
 .error {
   color: #f44336;
   margin-top: 0.5rem;
+}
+
+.balance-wrapper {
+  margin-top: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+:deep(.n-form-item-label) {
+  color: white !important;
+  width: 100% !important;
+  text-align: center;
+}
+
+:deep(.n-input-number .n-input__input) {
+  color: white !important;
+  background-color: #2a2a2a !important;
+  text-align: center;
+  caret-color: white !important;
+}
+
+:deep(.n-input) {
+  background-color: #2a2a2a !important;
+  border: 1px solid #444 !important;
+  border-radius: 5px !important;
 }
 </style>

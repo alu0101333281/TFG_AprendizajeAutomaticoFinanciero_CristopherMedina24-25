@@ -106,21 +106,3 @@ function closeModal() {
 }
 </script>
 
-<style scoped>
-.custom-button {
-  color: white;
-  border: 1px solid #888;
-  background-color: transparent;
-}
-
-.profit {
-  color: #4caf50;
-}
-.loss {
-  color: #f44336;
-}
-.timestamp {
-  font-size: 0.85rem;
-  color: #ccc;
-}
-</style>

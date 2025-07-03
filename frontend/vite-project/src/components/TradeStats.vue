@@ -72,20 +72,5 @@ const profitFactor = computed(() => {
 </script>
 
 <style scoped>
-.stats-button {
-  color: white;
-  border: 1px solid #888;
-  background-color: transparent;
-  margin-top: 10px;
-}
 
-.stats-content ul {
-  list-style: none;
-  padding-left: 0;
-}
-
-.stats-content li {
-  margin-bottom: 0.5rem;
-  color: white;
-}
 </style>

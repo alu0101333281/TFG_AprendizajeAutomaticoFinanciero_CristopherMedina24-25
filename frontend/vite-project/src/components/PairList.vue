@@ -30,10 +30,5 @@ function emitPairChange() {
 </script>
 
 <style scoped>
-.pair-list {
-  margin-bottom: 1rem;
-}
-select {
-  padding: 0.5rem;
-}
+
 </style>

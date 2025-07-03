@@ -165,39 +165,5 @@ function validateEntryPrice(): 'error' | undefined {
 </script>
 
 <style scoped>
-.trade-panel {
-  background-color: #1e1e1e;
-  color: white;
-  border-radius: 10px;
-  padding: 1rem;
-  max-width: 360px;
-  margin: auto;
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
-}
 
-.panel-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1rem;
-}
-
-.title {
-  font-weight: bold;
-  font-size: 1.1rem;
-  color: white;
-}
-
-.trade-form {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-/* Asegurar visibilidad de inputs */
-:deep(.n-form-item-label),
-:deep(.n-button__content),
-:deep(.n-input-number .n-input__input) {
-  color: white !important;
-}
 </style>
