@@ -1,14 +1,43 @@
 <template>
-  <div class="h-screen w-screen grid grid-cols-[60px_1fr_300px] grid-rows-[auto_1fr] bg-gray-900 text-white">
+<div class="grid-layout">
+  <div class="left-panel">
+    <DrawingTools />
+  </div>
+
+  <div class="main-chart-area">
     <UserInfo />
     <ClosedTrades />
     <TradeStats />
-    <div class="col-span-1 bg-gray-900 border-b border-gray-800 p-2 flex items-center justify-start gap-4">
+    <div class="toolbar">
       <Timeframes @update:timeframe="handleTimeframeChange" />
-      <button @click="toggleBacktestingMode" class="bg-blue-600 px-4 py-2 rounded text-white">
+      <button @click="toggleBacktestingMode" class="backtest-btn">
         {{ isBacktesting ? 'Salir Backtesting' : 'Iniciar Backtesting' }}
       </button>
-      <Controls
+
+
+    </div>
+    <div class="chart-wrapper" style="flex: 1; position: relative;">
+    <Chart
+      :timeframe="selectedTimeframe"
+      :symbol="selectedPair"
+      :backtesting-start-index="backtestingStartIndex"
+      :is-backtesting="isBacktesting"
+      :current-index="currentIndex"
+      :selection-mode="isSelectingStart"
+      @select-start="handleBacktestingStart"
+      @update:currentIndex="val => currentIndex = val"
+      @update:currentPrice="val => currentPrice = val"
+      @update:currentCandle="val => currentCandle = val"
+      :selectedTool="selectedTool"
+      @clear-tool="() => selectedTool = null"
+    />
+</div>
+    </div>
+
+  <div class="right-panel">
+
+    <PairList @pair-selected="handlePairChange" />
+          <Controls
         v-if="isBacktesting"
         :is-playing="isPlaying"
         :play-speed="playSpeed"
@@ -18,54 +47,28 @@
         @prev-candle="prevCandle"
         @update:playSpeed="val => playSpeed = val"
       />
-    </div>
-
-    <div class="relative bg-black">
-      <div class="absolute top-2 right-4 z-10 text-white text-lg font-bold bg-gray-800 px-4 py-1 rounded shadow">
-        Balance: {{ userStore.balance.toFixed(2) }} USDT
-      </div>
-      <DrawingTools @draw-tool="handleToolSelect" />
-      <Chart
-        :timeframe="selectedTimeframe"
-        :symbol="selectedPair"
-        :backtesting-start-index="backtestingStartIndex"
-        :is-backtesting="isBacktesting"
-        :current-index="currentIndex"
-        :selection-mode="isSelectingStart"
-        @select-start="handleBacktestingStart"
-        @update:currentIndex="val => currentIndex = val"
-        @update:currentPrice="val => currentPrice = val"
-        @update:currentCandle="val => currentCandle = val"
-        :selectedTool="selectedTool"
-        @clear-tool="() => selectedTool = null"
-      />
-    </div>
-
-    <div class="row-span-2 bg-gray-800 border-l border-gray-700 p-2 overflow-y-auto">
-      <PairList @pair-selected="handlePairChange" />
-    </div>
-
-    <div>
-      <TradePanel
-        :balance="userStore.balance"
-        :currentPrice="currentPrice"
-        :canTrade="backtestingStartIndex !== null"
-        @open-trade="handleOpenTrade"
-      />
-    </div>
-
-<div>
-  <OpenPosition
-    v-for="position in openPositions"
-    :key="position.id"
-    :form="position"
-    :symbol="selectedPair"
-    :currentPrice="currentPrice"
-    :currentCandle="currentCandle"
-    @close="(pnl, closePrice) => handleClosePosition(position.id, pnl, closePrice)"
-  />
-</div>
+    <TradePanel
+      :balance="userStore.balance"
+      :currentPrice="currentPrice"
+      :canTrade="backtestingStartIndex !== null"
+      @open-trade="handleOpenTrade"
+    />
+    <div class="open-positions-container">
+      <OpenPosition
+      v-for="position in openPositions"
+      :key="position.id"
+      :form="position"
+      :symbol="selectedPair"
+      :currentPrice="currentPrice"
+      :currentCandle="currentCandle"
+      @close="(pnl, closePrice) => handleClosePosition(position.id, pnl, closePrice)"
+    />
   </div>
+  </div>
+
+  
+</div>
+
 </template>
 
 <script setup lang="ts">
