@@ -179,3 +179,14 @@ const takeProfitInvalid = computed(() =>
 )
 </script>
 
+<style scoped>
+:deep(.n-form-item-label__text) {
+  color: white !important;
+  opacity: 1 !important;
+}
+
+:deep(.n-input-number .n-input__input) {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+}
+</style>

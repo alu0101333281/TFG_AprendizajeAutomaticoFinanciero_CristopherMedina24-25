@@ -174,8 +174,9 @@ button:focus-visible {
   color: white !important;
 }
 :deep(.n-input-number .n-input__input) {
-  color: black !important;
-  background-color: white !important;
+  color: #fff !important;
+  background-color: #2d2d2d !important;
+  opacity: 1;
 }
 .profit {
   color: #4caf50;
@@ -223,12 +224,6 @@ select {
   gap: 1rem;
 }
 
-/* Asegurar visibilidad de inputs */
-:deep(.n-form-item-label),
-:deep(.n-button__content),
-:deep(.n-input-number .n-input__input) {
-  color: white !important;
-}
 /*estilo de TradeStats.vue*/
 .stats-button {
   color: white;
@@ -340,4 +335,17 @@ select {
   position: relative;
   min-height: 0;
   overflow: hidden;
+}
+
+
+.n-input__input {
+  color: white !important;
+  background-color: #2a2a2a !important;
+  caret-color: white !important;
+  opacity: 1 !important;
+}
+
+.n-input__placeholder {
+  color: #aaa !important;
+  opacity: 1 !important;
 }

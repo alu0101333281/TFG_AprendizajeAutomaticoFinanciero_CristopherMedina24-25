@@ -1,6 +1,5 @@
 <template>
   <!-- Mostrar advertencia si no se puede operar aún -->
-<!-- ✅ Correcto -->
 
   <div class="trade-panel">
     <div class="panel-header">
@@ -165,5 +164,29 @@ function validateEntryPrice(): 'error' | undefined {
 </script>
 
 <style scoped>
+/* Etiquetas visibles */
+:deep(.n-form-item-label__text) {
+  color: white !important;
+  opacity: 1 !important;
+}
+
+/* Inputs editables */
+:deep(.n-input__input) {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+}
+
+/* Inputs readonly */
+:deep(.n-input__input[readonly]) {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+}
+
+/* n-input-number también usa internamente n-input */
+:deep(.n-input-number .n-input__input) {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+}
+
 
 </style>

@@ -1,11 +1,10 @@
 <template>
+  
 <div class="grid-layout">
-  <div class="left-panel">
-    <DrawingTools />
-  </div>
 
   <div class="main-chart-area">
     <UserInfo />
+    
     <ClosedTrades />
     <TradeStats />
     <div class="toolbar">
@@ -35,7 +34,7 @@
     </div>
 
   <div class="right-panel">
-
+Balance: {{ userStore.balance.toFixed(2) }} USDT
     <PairList @pair-selected="handlePairChange" />
           <Controls
         v-if="isBacktesting"

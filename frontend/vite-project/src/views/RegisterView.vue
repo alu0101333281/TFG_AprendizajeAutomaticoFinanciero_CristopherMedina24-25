@@ -41,12 +41,17 @@ const router = useRouter()
 const form = ref({
   username: '',
   password: '',
-  balance: 1000
+  balance: 0
 })
 
 const error = ref('')
 
 async function handleRegister() {
+    // Validación manual del balance
+  if (!form.value.balance || form.value.balance < 1) {
+    error.value = 'Debes ingresar un balance inicial válido (mínimo 1 USDT)'
+    return
+  }
   try {
     await axios.post('http://localhost:8080/users/register', form.value)
     router.push('/login')
@@ -57,6 +62,7 @@ async function handleRegister() {
 </script>
 
 <style scoped>
+/* Caja del formulario */
 .register-container {
   max-width: 400px;
   margin: 100px auto;
@@ -67,6 +73,7 @@ async function handleRegister() {
   box-shadow: 0 0 10px #000;
 }
 
+/* Etiquetas + inputs estándar */
 .form-group {
   margin-bottom: 1rem;
 }
@@ -78,6 +85,7 @@ input {
   color: white;
   border: 1px solid #444;
   border-radius: 5px;
+  caret-color: white;
 }
 
 button {
@@ -88,6 +96,7 @@ button {
   border: none;
   border-radius: 5px;
   cursor: pointer;
+  font-weight: bold;
 }
 
 button:hover {
@@ -99,27 +108,36 @@ button:hover {
   margin-top: 0.5rem;
 }
 
-.balance-wrapper {
-  margin-top: 1rem;
-  margin-bottom: 1.5rem;
-}
-
-:deep(.n-form-item-label) {
-  color: white !important;
-  width: 100% !important;
-  text-align: center;
+:deep(.n-input-number) {
+  width: 100%;
 }
 
 :deep(.n-input-number .n-input__input) {
+  background-color: #2a2a2a !important;
   color: white !important;
-  background-color: #2a2a2a !important;
-  text-align: center;
-  caret-color: white !important;
-}
-
-:deep(.n-input) {
-  background-color: #2a2a2a !important;
   border: 1px solid #444 !important;
   border-radius: 5px !important;
+  caret-color: white !important;
+  opacity: 1 !important;
+}
+
+:deep(.n-input-number .n-input__input[readonly]) {
+  background-color: #2a2a2a !important;
+  color: white !important;
+  opacity: 1 !important;
+}
+
+:deep(.n-input__placeholder) {
+  color: #bbb !important;
+  opacity: 1 !important;
+}
+
+:deep(.n-input-number .n-input__suffix) {
+  color: white !important;
+}
+
+:deep(.n-input.n-input--focus .n-input__input) {
+  box-shadow: 0 0 0 2px #42b88366;
 }
 </style>
+

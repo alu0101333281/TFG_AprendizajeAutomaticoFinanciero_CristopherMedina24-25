@@ -25,7 +25,6 @@
           <li><strong>Total de operaciones:</strong> {{ trades.length }}</li>
           <li><strong>Win Rate:</strong> {{ winRate.toFixed(2) }}%</li>
           <li><strong>Loss Rate:</strong> {{ lossRate.toFixed(2) }}%</li>
-          <li><strong>Profitabilidad:</strong> {{ profitFactor }}</li>
           <li><strong>PnL Total:</strong> {{ totalPnL.toFixed(2) }} USDT</li>
           <li><strong>ROI Promedio:</strong> {{ avgRoi.toFixed(2) }}%</li>
           <li><strong>Ganancia media:</strong> {{ avgWin.toFixed(2) }} USDT</li>
